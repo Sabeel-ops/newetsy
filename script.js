@@ -1,8 +1,15 @@
+// Import Generative AI library from the specified URL
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_KEY = "AIzaSyCoLQnJWSk6zPOsdZ0Hq0jNC6deWR7x8BE"; // Replace with your API key
+// Replace with your own API key
+const API_KEY = "AIzaSyCoLQnJWSk6zPOsdZ0Hq0jNC6deWR7x8BE";
+  
+// Create an instance of the Generative AI class
 const genAI = new GoogleGenerativeAI(API_KEY);
 
+
+
+// Function to convert a file to Generative AI part
 async function fileToGenerativePart(file) {
   const base64EncodedDataPromise = new Promise((resolve) => {
     const reader = new FileReader();
@@ -14,35 +21,55 @@ async function fileToGenerativePart(file) {
   };
 }
 
+// Function to generate text using Generative AI
 async function generateText() {
-  const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+    // Disable the button while generating content
+    const generateButton = document.getElementById("generateButton");
+    generateButton.disabled = true;
 
-  const prompt = "Generate an SEO optimized Etsy title for this product that will rank well on Etsy";
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
-  const imageInput = document.getElementById("imageInput");
+    const prompts = [
+      "Generate an SEO optimized Etsy title for this product that will rank well on Etsy",
+      "Generate relevant tags for this product on Etsy",
+    ];
 
-  // Check if at least one file is selected
-  if (imageInput.files.length === 0) {
-    const outputDiv = document.getElementById("output");
-    outputDiv.textContent = "Please select an image.";
-    return;
+    const imageInput = document.getElementById("imageInput");
+
+    if (imageInput.files.length === 0) {
+      alert("Please select an image.");
+      // Re-enable the button if an error occurs
+      generateButton.disabled = false;
+      return;
+    }
+
+    const imageParts = await Promise.all(
+      [...imageInput.files].map(fileToGenerativePart)
+    );
+
+    try {
+      const results = await Promise.all(prompts.map((prompt) => {
+        return model.generateContent([prompt, ...imageParts]);
+      }));
+
+      displayResult("resultContainer1", results[0]);
+      displayResult("resultContainer2", results[1]);
+    } catch (error) {
+      console.error("Error generating text:", error);
+    } finally {
+      // Re-enable the button after displaying the results
+      generateButton.disabled = false;
+    }
   }
 
-  const imageParts = await Promise.all(
-    [...imageInput.files].map(fileToGenerativePart)
-  );
-
-  try {
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const response = await result.response;
-    const text = await response.text();
-
-    const outputDiv = document.getElementById("output");
-    outputDiv.textContent = text;
-  } catch (error) {
-    console.error("Error generating text:", error);
-  }
+// Function to display the generated result
+function displayResult(containerId, result) {
+  const response = result.response;
+  const text = response.text();
+  const resultContainer = document.getElementById(containerId);
+  resultContainer.textContent = text;
 }
 
 // Event listener for the button click
 document.getElementById("generateButton").addEventListener("click", generateText);
+
